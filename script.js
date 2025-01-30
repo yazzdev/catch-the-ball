@@ -200,7 +200,7 @@ function updateGame() {
 
       balls.splice(index, 1);
 
-      if (score >= level * 100) {
+      if (score >= level * 300) {
         level++;
       }
     }
@@ -289,16 +289,20 @@ function showGameOverScreen() {
   gameOverScreen.id = 'gameOverScreen';
   gameOverScreen.innerHTML = `
         <h1>GAME OVER</h1>
-        <p>Skor Akhir: ${score}</p>
-        <button id="restartButton">Main Lagi</button>
+        <p>End Score: ${score}</p>
+        <button id="restartButton">Restart</button>
     `;
   document.body.appendChild(gameOverScreen);
 
   const restartButton = document.getElementById('restartButton');
   restartButton.addEventListener('click', () => {
     gameOverScreen.remove();
-    startScreen.style.display = 'flex';
-    canvas.style.display = 'none';
+    startScreen.style.display = 'none';
+    canvas.style.display = 'block';
+    isGameStarted = true;
+    init();
+    updateGame();
+    spawningBalls();
   });
 }
 
