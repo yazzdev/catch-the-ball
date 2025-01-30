@@ -29,6 +29,7 @@ window.addEventListener('resize', () => {
 let score = 0;
 let level = 1;
 let lives = 5;
+let maxLives = 5;
 let balls = [];
 let paddle;
 let gameOver = false;
@@ -101,13 +102,13 @@ class Ball {
     switch (this.type) {
       case 'zonk':
         this.text = 'ZONK';
-        this.value = -1;
+        this.value = -1; // Menandakan pengurangan nyawa jika tertangkap
         this.radius = 35; // Lebih besar agar teks muat
         this.color = '#e74c3c';
         break;
       case 'extraLife':
         this.text = '❤';
-        this.value = 0;
+        this.value = 0; // Tidak menambah skor
         this.radius = 35;
         this.color = '#ff9ff3';
         break;
@@ -121,8 +122,10 @@ class Ball {
   }
 
   getColorByValue(value) {
-    // Gradasi dari kuning ke hijau
-    let hue = Math.floor((value / 100) * 120); // 0 (merah) hingga 120 (hijau)
+    // Gradasi dari kuning (60) ke hijau (120) berdasarkan nilai poin
+    let startHue = 60; // Kuning
+    let endHue = 120; // Hijau
+    let hue = startHue + ((value - 1) / 99) * (endHue - startHue);
     return `hsl(${hue}, 80%, 50%)`;
   }
 
@@ -182,16 +185,17 @@ function updateGame() {
       ball.x >= paddle.x &&
       ball.x <= paddle.x + paddle.width
     ) {
-      switch (ball.type) {
-        case 'zonk':
-          lives--;
-          break;
-        case 'extraLife':
+      if (ball.type === 'zonk') {
+        // Jika bola zonk tertangkap, nyawa berkurang 1
+        lives--;
+      } else if (ball.type === 'extraLife') {
+        // Menambah nyawa hingga maksimum 5
+        if (lives < maxLives) {
           lives++;
-          break;
-        case 'numbered':
-          score += ball.value;
-          break;
+        }
+      } else if (ball.type === 'numbered') {
+        // Menambah skor sesuai nilai bola
+        score += ball.value;
       }
 
       balls.splice(index, 1);
@@ -203,9 +207,11 @@ function updateGame() {
 
     // Bola jatuh melewati layar
     if (ball.y - ball.radius > canvas.height) {
-      if (ball.type !== 'extraLife') {
+      if (ball.type === 'numbered') {
+        // Jika bola poin tidak ditangkap, nyawa berkurang 1
         lives--;
       }
+      // Jika bola zonk atau extraLife tidak ditangkap, tidak terjadi apa-apa
       balls.splice(index, 1);
     }
 
@@ -278,6 +284,7 @@ function spawningBalls() {
 
 // Layar Game Over
 function showGameOverScreen() {
+  isGameStarted = false;
   const gameOverScreen = document.createElement('div');
   gameOverScreen.id = 'gameOverScreen';
   gameOverScreen.innerHTML = `
@@ -290,10 +297,8 @@ function showGameOverScreen() {
   const restartButton = document.getElementById('restartButton');
   restartButton.addEventListener('click', () => {
     gameOverScreen.remove();
-    isGameStarted = true;
-    init();
-    updateGame();
-    spawningBalls();
+    startScreen.style.display = 'flex';
+    canvas.style.display = 'none';
   });
 }
 

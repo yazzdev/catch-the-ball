@@ -47,7 +47,7 @@ body {
     justify-content: center;
     align-items: center;
     color: #ecf0f1;
-    display: none;
+    /* display: none; */
 }
 
 #gameOverScreen h1 {
