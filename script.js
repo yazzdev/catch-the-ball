@@ -83,8 +83,12 @@ class Ball {
   randomType() {
     const types = ['zonk', 'extraLife', 'numbered', 'negative'];
     let probabilities;
-    if (level >= 2) {
-      probabilities = [0.1, 0.1, 0.7, 0.1]; // Level 2 ke atas
+    if (level == 2) {
+      probabilities = [0.1, 0.1, 0.6, 0.2];
+    } else if (level == 3) {
+      probabilities = [0.1, 0.1, 0.5, 0.3];
+    } else if (level >= 4) {
+      probabilities = [0.1, 0.1, 0.4, 0.4];
     } else {
       probabilities = [0.1, 0.1, 0.8, 0]; // Level 1, tidak ada bola negatif
     }
