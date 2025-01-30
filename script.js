@@ -1,5 +1,7 @@
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
+const startScreen = document.getElementById('startScreen');
+const startButton = document.getElementById('startButton');
 
 // Mengatur ukuran canvas dengan rasio 4:3
 function resizeCanvas() {
@@ -17,7 +19,12 @@ function resizeCanvas() {
 }
 
 resizeCanvas();
-window.addEventListener('resize', resizeCanvas);
+window.addEventListener('resize', () => {
+  resizeCanvas();
+  if (!gameOver && !isGameStarted) {
+    drawStartScreen();
+  }
+});
 
 let score = 0;
 let level = 1;
@@ -25,6 +32,9 @@ let lives = 5;
 let balls = [];
 let paddle;
 let gameOver = false;
+let isGameStarted = false;
+let spawnInterval = 2000;
+let lastSpawnTime = Date.now();
 
 class Paddle {
   constructor() {
@@ -38,7 +48,18 @@ class Paddle {
 
   draw() {
     ctx.fillStyle = '#e74c3c';
-    ctx.fillRect(this.x, this.y, this.width, this.height);
+    ctx.beginPath();
+    ctx.moveTo(this.x, this.y + this.height);
+    ctx.lineTo(this.x, this.y + this.height / 2);
+    ctx.quadraticCurveTo(
+      this.x + this.width / 2,
+      this.y - this.height,
+      this.x + this.width,
+      this.y + this.height / 2
+    );
+    ctx.lineTo(this.x + this.width, this.y + this.height);
+    ctx.closePath();
+    ctx.fill();
   }
 
   update() {
@@ -59,8 +80,8 @@ class Ball {
   }
 
   randomType() {
-    const types = ['normal', 'zonk', 'extraLife', 'numbered'];
-    const probabilities = [0.6, 0.1, 0.1, 0.2]; // Probabilitas kemunculan
+    const types = ['zonk', 'extraLife', 'numbered'];
+    const probabilities = [0.1, 0.1, 0.8]; // Probabilitas kemunculan
     let random = Math.random();
     let cumulative = 0;
     for (let i = 0; i < types.length; i++) {
@@ -69,41 +90,40 @@ class Ball {
         return types[i];
       }
     }
-    return 'normal';
+    return 'numbered';
   }
 
   setProperties() {
     this.y = -20;
     this.speed = Math.random() * 2 + 2 + level * 0.5;
-    this.x = Math.random() * (canvas.width - 40) + 20;
+    this.x = Math.random() * (canvas.width - 60) + 30;
 
     switch (this.type) {
       case 'zonk':
-        this.radius = 20;
+        this.text = 'ZONK';
+        this.value = -1;
+        this.radius = 35; // Lebih besar agar teks muat
         this.color = '#e74c3c';
         break;
       case 'extraLife':
-        this.radius = 20;
+        this.text = '❤';
+        this.value = 0;
+        this.radius = 35;
         this.color = '#ff9ff3';
         break;
       case 'numbered':
         this.value = Math.floor(Math.random() * 100) + 1;
-        this.radius = 15 + (this.value / 10);
+        this.radius = 20 + (this.value / 5); // Ukuran bola disesuaikan dengan nilai
         this.color = this.getColorByValue(this.value);
-        break;
-      default:
-        this.radius = 15;
-        this.color = '#f1c40f';
+        this.text = this.value.toString();
         break;
     }
   }
 
   getColorByValue(value) {
     // Gradasi dari kuning ke hijau
-    let r = Math.floor(241 - (value * 1.4));
-    let g = Math.floor(196 + (value * 0.59));
-    let b = 15;
-    return `rgb(${r}, ${g}, ${b})`;
+    let hue = Math.floor((value / 100) * 120); // 0 (merah) hingga 120 (hijau)
+    return `hsl(${hue}, 80%, 50%)`;
   }
 
   draw() {
@@ -115,17 +135,11 @@ class Ball {
 
     // Menambahkan teks pada bola
     ctx.fillStyle = '#2c3e50';
-    ctx.font = 'bold ' + (this.radius) + 'px Arial';
+    ctx.font = 'bold ' + (this.radius / 1.5) + 'px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    if (this.type === 'zonk') {
-      ctx.fillText('ZONK', this.x, this.y);
-    } else if (this.type === 'extraLife') {
-      ctx.fillText('❤', this.x, this.y);
-    } else if (this.type === 'numbered') {
-      ctx.fillText(this.value, this.x, this.y);
-    }
+    ctx.fillText(this.text, this.x, this.y);
   }
 
   update() {
@@ -141,6 +155,8 @@ function init() {
   level = 1;
   lives = 5;
   gameOver = false;
+  spawnInterval = 2000;
+  lastSpawnTime = Date.now();
 }
 
 function spawnBall() {
@@ -148,8 +164,7 @@ function spawnBall() {
 }
 
 function updateGame() {
-  if (gameOver) {
-    displayGameOver();
+  if (gameOver || !isGameStarted) {
     return;
   }
 
@@ -163,6 +178,7 @@ function updateGame() {
     // Deteksi tumbukan dengan paddle
     if (
       ball.y + ball.radius >= paddle.y &&
+      ball.y - ball.radius <= paddle.y + paddle.height &&
       ball.x >= paddle.x &&
       ball.x <= paddle.x + paddle.width
     ) {
@@ -176,21 +192,18 @@ function updateGame() {
         case 'numbered':
           score += ball.value;
           break;
-        default:
-          score++;
-          break;
       }
 
       balls.splice(index, 1);
 
-      if (score >= level * 50) {
+      if (score >= level * 100) {
         level++;
       }
     }
 
     // Bola jatuh melewati layar
     if (ball.y - ball.radius > canvas.height) {
-      if (ball.type !== 'zonk' && ball.type !== 'extraLife') {
+      if (ball.type !== 'extraLife') {
         lives--;
       }
       balls.splice(index, 1);
@@ -199,6 +212,7 @@ function updateGame() {
     // Cek nyawa
     if (lives <= 0) {
       gameOver = true;
+      showGameOverScreen();
     }
   });
 
@@ -216,31 +230,12 @@ function drawHUD() {
   ctx.fillText('Nyawa: ' + lives, 20, 90);
 }
 
-function displayGameOver() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  ctx.fillStyle = '#ecf0f1';
-  ctx.font = '50px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText('GAME OVER', canvas.width / 2, canvas.height / 2 - 50);
-
-  ctx.font = '30px Arial';
-  ctx.fillText('Skor Akhir: ' + score, canvas.width / 2, canvas.height / 2);
-
-  ctx.font = '20px Arial';
-  ctx.fillText('Tekan "Space" untuk bermain lagi', canvas.width / 2, canvas.height / 2 + 50);
-}
-
 // Kontrol paddle
 function keyDownHandler(e) {
   if (e.key === 'Right' || e.key === 'ArrowRight') {
     paddle.dx = paddle.speed;
   } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
     paddle.dx = -paddle.speed;
-  } else if (e.key === ' ' && gameOver) {
-    init();
-    updateGame();
-    spawningBalls();
   }
 }
 
@@ -258,21 +253,53 @@ function keyUpHandler(e) {
 document.addEventListener('keydown', keyDownHandler);
 document.addEventListener('keyup', keyUpHandler);
 
-// Spawning balls at intervals
-let spawnInterval = 2000;
-let lastSpawnTime = Date.now();
+// Tombol Start
+startButton.addEventListener('click', () => {
+  startScreen.style.display = 'none';
+  canvas.style.display = 'block';
+  isGameStarted = true;
+  init();
+  updateGame();
+  spawningBalls();
+});
 
+// Spawning balls at intervals
 function spawningBalls() {
-  if (gameOver) return;
+  if (gameOver || !isGameStarted) return;
 
   if (Date.now() - lastSpawnTime > spawnInterval) {
     spawnBall();
     lastSpawnTime = Date.now();
     spawnInterval *= 0.98; // Meningkatkan kesulitan
+    if (spawnInterval < 500) spawnInterval = 500; // Batas minimum interval
   }
   requestAnimationFrame(spawningBalls);
 }
 
+// Layar Game Over
+function showGameOverScreen() {
+  const gameOverScreen = document.createElement('div');
+  gameOverScreen.id = 'gameOverScreen';
+  gameOverScreen.innerHTML = `
+        <h1>GAME OVER</h1>
+        <p>Skor Akhir: ${score}</p>
+        <button id="restartButton">Main Lagi</button>
+    `;
+  document.body.appendChild(gameOverScreen);
+
+  const restartButton = document.getElementById('restartButton');
+  restartButton.addEventListener('click', () => {
+    gameOverScreen.remove();
+    isGameStarted = true;
+    init();
+    updateGame();
+    spawningBalls();
+  });
+}
+
+// Gambar Layar Awal
+function drawStartScreen() {
+  // Ditangani oleh elemen HTML dan CSS
+}
+
 init();
-updateGame();
-spawningBalls();
