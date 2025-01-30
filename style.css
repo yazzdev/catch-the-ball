@@ -7,4 +7,5 @@ body {
 #gameCanvas {
     display: block;
     background-color: #34495e;
+    margin: auto;
 }
