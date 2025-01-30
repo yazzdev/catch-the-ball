@@ -81,8 +81,13 @@ class Ball {
   }
 
   randomType() {
-    const types = ['zonk', 'extraLife', 'numbered'];
-    const probabilities = [0.1, 0.1, 0.8]; // Probabilitas kemunculan
+    const types = ['zonk', 'extraLife', 'numbered', 'negative'];
+    let probabilities;
+    if (level >= 2) {
+      probabilities = [0.1, 0.1, 0.7, 0.1]; // Level 2 ke atas
+    } else {
+      probabilities = [0.1, 0.1, 0.8, 0]; // Level 1, tidak ada bola negatif
+    }
     let random = Math.random();
     let cumulative = 0;
     for (let i = 0; i < types.length; i++) {
@@ -102,30 +107,44 @@ class Ball {
     switch (this.type) {
       case 'zonk':
         this.text = 'ZONK';
-        this.value = -1; // Menandakan pengurangan nyawa jika tertangkap
-        this.radius = 35; // Lebih besar agar teks muat
-        this.color = '#e74c3c';
+        this.value = -1; // Mengurangi nyawa jika tertangkap
+        this.radius = 35;
+        this.color = '#000000'; // Ubah menjadi hitam
         break;
       case 'extraLife':
         this.text = '❤';
-        this.value = 0; // Tidak menambah skor
-        this.radius = 35;
+        this.value = 0; // Tidak mengubah skor
+        this.radius = 30;
         this.color = '#ff9ff3';
         break;
       case 'numbered':
         this.value = Math.floor(Math.random() * 100) + 1;
-        this.radius = 20 + (this.value / 5); // Ukuran bola disesuaikan dengan nilai
+        this.radius = 25 + (this.value / 5);
         this.color = this.getColorByValue(this.value);
+        this.text = this.value.toString();
+        break;
+      case 'negative':
+        this.value = -(Math.floor(Math.random() * 100) + 1); // -1 hingga -100
+        this.radius = 25 + (Math.abs(this.value) / 5);
+        this.color = this.getNegativeColorByValue(this.value);
         this.text = this.value.toString();
         break;
     }
   }
 
   getColorByValue(value) {
-    // Gradasi dari kuning (60) ke hijau (120) berdasarkan nilai poin
+    // Gradasi dari kuning (60) ke hijau (120) berdasarkan nilai poin positif
     let startHue = 60; // Kuning
     let endHue = 120; // Hijau
     let hue = startHue + ((value - 1) / 99) * (endHue - startHue);
+    return `hsl(${hue}, 80%, 50%)`;
+  }
+
+  getNegativeColorByValue(value) {
+    // Gradasi dari merah (0) ke kuning (60) berdasarkan nilai poin negatif
+    let startHue = 0;   // Merah
+    let endHue = 60;    // Kuning
+    let hue = startHue + ((Math.abs(value) - 1) / 99) * (endHue - startHue);
     return `hsl(${hue}, 80%, 50%)`;
   }
 
@@ -185,21 +204,35 @@ function updateGame() {
       ball.x >= paddle.x &&
       ball.x <= paddle.x + paddle.width
     ) {
-      if (ball.type === 'zonk') {
-        // Jika bola zonk tertangkap, nyawa berkurang 1
-        lives--;
-      } else if (ball.type === 'extraLife') {
-        // Menambah nyawa hingga maksimum 5
-        if (lives < maxLives) {
-          lives++;
-        }
-      } else if (ball.type === 'numbered') {
-        // Menambah skor sesuai nilai bola
-        score += ball.value;
+      switch (ball.type) {
+        case 'zonk':
+          // Jika bola zonk tertangkap, nyawa berkurang 1
+          lives--;
+          break;
+        case 'extraLife':
+          // Menambah nyawa hingga maksimum 5
+          if (lives < maxLives) {
+            lives++;
+          }
+          break;
+        case 'numbered':
+          // Menambah skor sesuai nilai bola
+          score += ball.value;
+          break;
+        case 'negative':
+          // Mengurangi skor sesuai nilai bola (nilai negatif)
+          score += ball.value;
+          // Cek apakah level turun
+          let newLevel = Math.floor(score / 300) + 1;
+          if (newLevel < level) {
+            level = Math.max(1, newLevel);
+          }
+          break;
       }
 
       balls.splice(index, 1);
 
+      // Cek apakah level naik
       if (score >= level * 300) {
         level++;
       }
@@ -211,7 +244,7 @@ function updateGame() {
         // Jika bola poin tidak ditangkap, nyawa berkurang 1
         lives--;
       }
-      // Jika bola zonk atau extraLife tidak ditangkap, tidak terjadi apa-apa
+      // Jika bola zonk, extraLife, atau negative tidak ditangkap, tidak terjadi apa-apa
       balls.splice(index, 1);
     }
 
